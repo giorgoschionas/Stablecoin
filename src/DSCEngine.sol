@@ -62,6 +62,7 @@ contract DSCEngine {
     error DSCEngine_MintFailed();
     error DSCEngine__BreaksHealthFactor(uint256 healthFactorValue);
     error DSCEngine__TokenAddressesAndPriceFeedAddressesAmountsDontMatch();
+    error DSCEngine__HealthFactorOk();
 
 
 
@@ -77,6 +78,8 @@ contract DSCEngine {
     uint256 private constant LIQUIDATION_THRESHOLD = 50; // This means you need to be 200% over-collateralized
     uint256 private constant LIQUIDATION_BONUS = 10; // This means you get assets at a 10% discount when liquidating
     uint256 private constant MIN_HEALTH_FACTOR = 1e18;
+    uint256 private constant LIQUIADATOR_BONUS = 10; // This means liquidator gets a 10% bonus for liquidating a position
+
 
 
     /// @dev Mapping of token address to price feed address
@@ -92,7 +95,7 @@ contract DSCEngine {
     // Events
     ///////////////////
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
-    event RedeemCollateral(address indexed redeemFrom, address indexed redeemTo, address token, uint256 amount);
+    event CollateralRedeemed(address indexed redeemFrom, address indexed redeemTo, address token, uint256 amount);
 
 
 
@@ -164,7 +167,7 @@ contract DSCEngine {
     }
 
     /*
-     *notice
+     *This function burns DSC and redeems collateral
     */
 
     function redeeemCollateralForDsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountDscToBurn) 
@@ -197,7 +200,37 @@ contract DSCEngine {
         _burnDsc(amountDscToBurn, msg.sender, msg.sender);
 
     }
-    function liquidate() external {}
+    /*
+     * @notice The incentive to liquidate works as long as the system is overcollateralized. If the system is undercollateralized, the incentive to liquidate is not enough to cover the debt.
+     * @notice A known bug would be if the protocol were 100% collateralized or less, thehn we wouldn't be able to incentivize the liquidators
+    */
+    // This is one of the most important functions, in order to maintain the peg. If someone position is undercollateralized, we need to liquidate their position.
+    function liquidate(address collateral, address user, uint256 debtToCover) 
+        external
+        moreThanZero(debtToCover)
+    {
+        uint256 startingUserHealthFactor = _healthFactor(user);
+        if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
+            revert DSCEngine__HealthFactorOk();
+        }
+        uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(collateral, debtToCover);
+        uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / PRECISION;
+        uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered + bonusCollateral;
+        // Burn DSC equal to debtToCover
+        // Figure out how much collateral to recover based on how much burnt
+        _burnDsc(debtToCover, user, msg.sender);
+        _redeemCollateral(collateral, totalCollateralToRedeem, user, msg.sender);
+
+        uint256 endingUserHealthFactor = _healthFactor(user);
+        // This conditional should never hit, but just in case
+        if (endingUserHealthFactor <= startingUserHealthFactor) {
+            revert DSCEngine__HealthFactorNotImproved();
+        }
+        // if the liquidation hurts the health factor of the liquidator, we should revert
+        revertIfHealthFactorIsBroken(msg.sender);
+    }
+
+
     function getWellFactor() external view {}
 
 
@@ -228,7 +261,7 @@ contract DSCEngine {
     function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to) private {
         s_collateralDeposited[from][tokenCollateralAddress] -= amountCollateral;
         // update state so we need an event
-        emit RedeemCollateral(from, to, tokenCollateralAddress, amountCollateral);
+        emit CollateralRedeemed(from, to, tokenCollateralAddress, amountCollateral);
         // move tokens around
         bool success = IERC20(tokenCollateralAddress).transfer(to, amountCollateral);
         if (!success) {
@@ -299,6 +332,17 @@ contract DSCEngine {
     // External & Public View & Pure Functions
     ////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////
+
+
+    function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
+        // price of ETH 
+        // $/ETH = 1000 ??
+        // eg. $2000 / ETH. $1000 = 0.5 ETH
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (, int256 price,,,) = priceFeed.latestRoundData(); 
+        return (usdAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
+        
+    }
 
     function getUsdValue(
         address token,

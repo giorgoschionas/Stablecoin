@@ -37,6 +37,13 @@ contract DSCEngineTest is Test {
     /////// Price Tests ///////////
     //////////////////////////////
 
+    function testGetTokenAmountFromUsd() public {
+        // If we want $100 of WETH @ $2000/WETH, that would be 0.05 WETH
+        uint256 expectedWeth = 0.05 ether;
+        uint256 amountWeth = engine.getTokenAmountFromUsd(weth, 100 ether);
+        assertEq(amountWeth, expectedWeth);
+    }
+
     function testGetUsdValue() public {
         uint256 ethAmount = 15e18;
         uint256 expectedUsd = 30000e18;
@@ -46,8 +53,9 @@ contract DSCEngineTest is Test {
 
 
     /////////////////////////////// 
-    /////// Price Tests ///////////
+    /////// depositCollateral Tests ///////////
     //////////////////////////////
+
 
     function testRevertsIfCollateralZero() public {
         vm.startPrank(USER);
@@ -55,5 +63,28 @@ contract DSCEngineTest is Test {
         vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
         engine.depositCollateral(weth, 0);
         vm.stopPrank();
+    }
+
+    function testRevertIfTokenIsNotAllowed() public {
+        ERC20Mock newToken = new ERC20Mock("New", "New", USER, AMOUNT_COLLATERAL);
+        vm.startPrank(USER);
+        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__TokenNotAllowed.selector, address(newToken)));
+        engine.depositCollateral(address(newToken), AMOUNT_COLLATERAL);
+        vm.stopPrank();
+    }
+
+        modifier depositedCollateral() {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
+        engine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
+    function testCanDepositedCollateralAndGetAccountInfo() public depositedCollateral {
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = engine.getAccountInformation(USER);
+        uint256 expectedDepositedAmount = engine.getTokenAmountFromUsd(weth, collateralValueInUsd);
+        assertEq(totalDscMinted,0);
+        assertEq(AMOUNT_COLLATERAL, expectedDepositedAmount);
     }
 }

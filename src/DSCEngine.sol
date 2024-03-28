@@ -231,10 +231,6 @@ contract DSCEngine {
     }
 
 
-    function getWellFactor() external view {}
-
-
-
     ///////////////////
     // Public Functions
     ///////////////////
@@ -351,7 +347,7 @@ contract DSCEngine {
         return _getUsdValue(token, amount);
     }
 
-        // get the collateral value in USD
+    // get the collateral value in USD
     function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {
         for (uint256 i=0; i < s_collateralTokens.length; i++) {
             address token = s_collateralTokens[i];
@@ -359,6 +355,10 @@ contract DSCEngine {
             uint256 value = _getUsdValue(token, amount);
             totalCollateralValueInUsd += value;
         }
+    }
+
+    function getAccountInformation(address user) external view returns (uint256 totalDscMinted, uint256 collateralValueInUsd) {
+        return _getAccountInformation(user);
     }
 
 

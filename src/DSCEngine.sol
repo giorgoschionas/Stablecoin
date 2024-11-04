@@ -59,7 +59,7 @@ contract DSCEngine {
     error DSCEngine__HealthFactorNotImproved();
     error DSCEngine__TokenNotAllowed(address token);
     error DSCEngine__TransferFailed();
-    error DSCEngine_MintFailed();
+    error DSCEngine__MintFailed();
     error DSCEngine__BreaksHealthFactor(uint256 healthFactorValue);
     error DSCEngine__TokenAddressesAndPriceFeedAddressesAmountsDontMatch();
     error DSCEngine__HealthFactorOk();
@@ -239,7 +239,7 @@ contract DSCEngine {
         revertIfHealthFactorIsBroken(msg.sender);
         bool minted = i_dsc.mint(msg.sender, amountDscToMint);
         if (!minted) {
-            revert DSCEngine_MintFailed();
+            revert DSCEngine__MintFailed();
         }
 
     }

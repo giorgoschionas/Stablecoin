@@ -37,18 +37,18 @@ contract DSCEngineTest is Test {
     /////// Price Tests ///////////
     //////////////////////////////
 
-    function testGetTokenAmountFromUsd() public {
-        // If we want $100 of WETH @ $2000/WETH, that would be 0.05 WETH
-        uint256 expectedWeth = 0.05 ether;
-        uint256 amountWeth = engine.getTokenAmountFromUsd(weth, 100 ether);
-        assertEq(amountWeth, expectedWeth);
-    }
-
     function testGetUsdValue() public {
         uint256 ethAmount = 15e18;
         uint256 expectedUsd = 30000e18;
         uint256 actualUsd = engine.getUsdValue(weth, ethAmount);
         assertEq(actualUsd, expectedUsd);
+    }
+
+    function testGetTokenAmountFromUsd() public {
+        uint256 usdAmount = 100 ether;
+        uint256 expectedWeth = 0.05 ether;
+        uint256 amountWeth = engine.getTokenAmountFromUsd(weth, usdAmount);
+        assertEq(amountWeth, expectedWeth);
     }
 
 

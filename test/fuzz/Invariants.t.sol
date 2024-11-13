@@ -9,6 +9,7 @@ import {DecentralizedStableCoin} from "../../src/DecentralizedStableCoin.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {DeployDSC} from "../../script/DeployDSC.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Handler} from "./Handler.t.sol";
 
 contract Invariants is StdInvariant, Test {
     DeployDSC deployer;
@@ -17,13 +18,19 @@ contract Invariants is StdInvariant, Test {
     HelperConfig config;
     address weth;
     address wbtc;
+    Handler handler;
 
     function setUp() external {
         deployer = new DeployDSC();
         (dsc, engine, config) = deployer.run();
         dsc = new DecentralizedStableCoin();
         (, , weth, wbtc, ) = config.activeNetworkConfig();
-        targetContract(address(engine));
+        // targetContract(address(engine));
+        // modify the invariant to check the proper collateralization
+        handler = new Handler(engine, dsc);
+        targetContract(address(handler));
+
+
     }
 
     //In the DSC, we should always have more collateral than the amount of DSC tokens minted (overcollateralization)

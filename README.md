@@ -1,10 +1,15 @@
-1. Relative Stability: Anchored or Pegged -> $1.00
-   1. Chainlink Price feed
-   2. Set a function to exchange ETH & BTC 
-2. Stability Mechanism (Minting): Algorithmic (Decentralized)
-   1. People can only mint the stablecoin with enough collateral (overcollateralized)
-3. Collateral: Exogenous (Crypto)
-   1. wETH
-   2. wBTC
-4. Fuzzing Test - What are our invariants?
-   1. 
+# Stablecoin Project
+
+## 1. Relative Stability: Anchored or Pegged -> $1.00
+   - **Chainlink Price Feed**
+   - Set a function to exchange ETH & BTC 
+
+## 2. Stability Mechanism (Minting): Algorithmic (Decentralized)
+   - People can only mint the stablecoin with enough collateral (overcollateralized)
+
+## 3. Collateral: Exogenous (Crypto)
+   - **wETH**
+   - **wBTC**
+
+## 4. Fuzzing Test
+   - **What are our invariants?**

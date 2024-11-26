@@ -9,7 +9,6 @@ import {DecentralizedStableCoin} from "../../src/DecentralizedStableCoin.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 
-
 contract DSCEngineTest is Test {
     DecentralizedStableCoin dsc;
     DeployDSC deployer;
@@ -26,14 +25,11 @@ contract DSCEngineTest is Test {
         deployer = new DeployDSC();
         (dsc, engine, config) = deployer.run();
         // dsc = new DecentralizedStableCoin();
-        (ethUsdPriceFeed, , weth, ,) = config.activeNetworkConfig();
+        (ethUsdPriceFeed,, weth,,) = config.activeNetworkConfig();
         ERC20Mock(weth).mint(USER, STARTING_USER_BALANCE);
-
-
     }
 
-
-    /////////////////////////////// 
+    ///////////////////////////////
     /////// Price Tests ///////////
     //////////////////////////////
 
@@ -51,11 +47,9 @@ contract DSCEngineTest is Test {
         assertEq(amountWeth, expectedWeth);
     }
 
-
-    /////////////////////////////// 
+    ///////////////////////////////
     /////// depositCollateral Tests ///////////
     //////////////////////////////
-
 
     function testRevertsIfCollateralZero() public {
         vm.startPrank(USER);
@@ -73,7 +67,7 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
     }
 
-        modifier depositedCollateral() {
+    modifier depositedCollateral() {
         vm.startPrank(USER);
         ERC20Mock(weth).approve(address(engine), AMOUNT_COLLATERAL);
         engine.depositCollateral(weth, AMOUNT_COLLATERAL);
@@ -84,7 +78,7 @@ contract DSCEngineTest is Test {
     function testCanDepositedCollateralAndGetAccountInfo() public depositedCollateral {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = engine.getAccountInformation(USER);
         uint256 expectedDepositedAmount = engine.getTokenAmountFromUsd(weth, collateralValueInUsd);
-        assertEq(totalDscMinted,0);
+        assertEq(totalDscMinted, 0);
         assertEq(AMOUNT_COLLATERAL, expectedDepositedAmount);
     }
 }

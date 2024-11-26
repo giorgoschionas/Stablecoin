@@ -8,7 +8,7 @@ import {DSCEngine} from "../../src/DSCEngine.sol";
 import {DecentralizedStableCoin} from "../../src/DecentralizedStableCoin.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
-
+import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 
 contract Handler is Test {
     DSCEngine engine;
@@ -22,10 +22,20 @@ contract Handler is Test {
         engine = _engine;
         dsc = _dsc;
         address[] memory collateralTokens = engine.getCollateralTokens();
-        wbtc = ERC20Mock(collateralTokens[0]);    
+        wbtc = ERC20Mock(collateralTokens[0]);
         weth = ERC20Mock(collateralTokens[1]);
     }
-        
+
+    //Aggregator
+    function updateCollateralPrice(uint128, /* newPrice */ uint256 collateralSeed) public {
+        // int256 intNewPrice = int256(uint256(newPrice));
+        int256 intNewPrice = 0;
+        ERC20Mock collateral = _getCollateralFromSeed(collateralSeed);
+        MockV3Aggregator priceFeed = MockV3Aggregator(engine.getCollateralTokenPriceFeed(address(collateral)));
+
+        priceFeed.updateAnswer(intNewPrice);
+    }
+
     //deposit collateral
     function depositCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
         // with this way we get the a valid collateral token

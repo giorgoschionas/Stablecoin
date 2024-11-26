@@ -28,8 +28,7 @@ import {DecentralizedStableCoin} from "./DecentralizedStableCoin.sol";
 // import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-
-
+import {OracleLib} from "./libraries/OracleLib.sol";
 /*
 
  * @title DSCEngine
@@ -49,9 +48,7 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/Ag
 
 */
 
-
 contract DSCEngine {
-    
     ///////////////////
     // Errors
     ///////////////////
@@ -64,13 +61,15 @@ contract DSCEngine {
     error DSCEngine__TokenAddressesAndPriceFeedAddressesAmountsDontMatch();
     error DSCEngine__HealthFactorOk();
 
-
+    //////////////////////
+    /// Type //////////
+    /////////////////////
+    using OracleLib for AggregatorV3Interface;
 
     ///////////////////
     // State Variables
     ///////////////////
     DecentralizedStableCoin private immutable i_dsc;
-
 
     uint256 constant PRECISION = 1e18;
     uint256 constant ADDITIONAL_FEED_PRECISION = 1e10;
@@ -80,8 +79,6 @@ contract DSCEngine {
     uint256 private constant MIN_HEALTH_FACTOR = 1e18;
     uint256 private constant LIQUIADATOR_BONUS = 10; // This means liquidator gets a 10% bonus for liquidating a position
 
-
-
     /// @dev Mapping of token address to price feed address
     mapping(address collateralToken => address priceFeed) private s_priceFeeds;
     /// @dev Amount of collateral deposited by user
@@ -89,24 +86,18 @@ contract DSCEngine {
     mapping(address user => uint256) private s_DSCMinted;
     address[] private s_collateralTokens;
 
-
-    
     ///////////////////
     // Events
     ///////////////////
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
     event CollateralRedeemed(address indexed redeemFrom, address indexed redeemTo, address token, uint256 amount);
 
-
-
-    
     ///////////////////
     // Modifiers
     ///////////////////
     modifier moreThanZero(uint256 amount) {
         if (amount <= 0) {
             revert DSCEngine__NeedsMoreThanZero();
-
         }
         _;
     }
@@ -117,7 +108,6 @@ contract DSCEngine {
         }
         _;
     }
-
 
     ///////////////////
     // Functions
@@ -146,11 +136,14 @@ contract DSCEngine {
      * @notice This function allows a user to deposit collateral and mint DSC in one transaction
     */
 
-    function depositCollateralAndMintDSC(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountDscToMint) external {
+    function depositCollateralAndMintDSC(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountDscToMint
+    ) external {
         depositCollateral(tokenCollateralAddress, amountCollateral);
         mintDsc(amountDscToMint);
     }
-
 
     function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
         public
@@ -170,7 +163,7 @@ contract DSCEngine {
      *This function burns DSC and redeems collateral
     */
 
-    function redeeemCollateralForDsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountDscToBurn) 
+    function redeeemCollateralForDsc(address tokenCollateralAddress, uint256 amountCollateral, uint256 amountDscToBurn)
         external
         moreThanZero(amountCollateral)
         isAllowedToken(tokenCollateralAddress)
@@ -178,9 +171,8 @@ contract DSCEngine {
         _burnDsc(amountDscToBurn, msg.sender, msg.sender);
         _redeemCollateral(tokenCollateralAddress, amountCollateral, msg.sender, msg.sender);
         revertIfHealthFactorIsBroken(msg.sender);
-
     }
-    
+
     function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
         external
         moreThanZero(amountCollateral)
@@ -195,20 +187,16 @@ contract DSCEngine {
         * @notice This function allows a user to burn DSC
     */
 
-
     function burnDsc(uint256 amountDscToBurn) external {
         _burnDsc(amountDscToBurn, msg.sender, msg.sender);
-
     }
     /*
      * @notice The incentive to liquidate works as long as the system is overcollateralized. If the system is undercollateralized, the incentive to liquidate is not enough to cover the debt.
      * @notice A known bug would be if the protocol were 100% collateralized or less, thehn we wouldn't be able to incentivize the liquidators
     */
     // This is one of the most important functions, in order to maintain the peg. If someone position is undercollateralized, we need to liquidate their position.
-    function liquidate(address collateral, address user, uint256 debtToCover) 
-        external
-        moreThanZero(debtToCover)
-    {
+
+    function liquidate(address collateral, address user, uint256 debtToCover) external moreThanZero(debtToCover) {
         uint256 startingUserHealthFactor = _healthFactor(user);
         if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
             revert DSCEngine__HealthFactorOk();
@@ -230,7 +218,6 @@ contract DSCEngine {
         revertIfHealthFactorIsBroken(msg.sender);
     }
 
-
     ///////////////////
     // Public Functions
     ///////////////////
@@ -241,12 +228,7 @@ contract DSCEngine {
         if (!minted) {
             revert DSCEngine__MintFailed();
         }
-
     }
-
-
- 
-
 
     ////////////////////////////////////////
     // Private and Internal View Functions
@@ -254,7 +236,9 @@ contract DSCEngine {
 
     // underscore prefix for private functions
 
-    function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to) private {
+    function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to)
+        private
+    {
         s_collateralDeposited[from][tokenCollateralAddress] -= amountCollateral;
         // update state so we need an event
         emit CollateralRedeemed(from, to, tokenCollateralAddress, amountCollateral);
@@ -308,13 +292,9 @@ contract DSCEngine {
         }
     }
 
-
-
-
-
     function _getUsdValue(address token, uint256 amount) private view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (, int256 price,,,) = priceFeed.latestRoundData();
+        (, int256 price,,,) = priceFeed.staleCheckLatestRoundData();
         // 1 ETH = 1000 USD
         // The returned value from Chainlink will be 1000 * 1e8
         // Most USD pairs have 8 decimals, so we will just pretend they all do
@@ -322,22 +302,19 @@ contract DSCEngine {
         return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
     }
 
-
     ////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////
     // External & Public View & Pure Functions
     ////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////
 
-
     function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
-        // price of ETH 
+        // price of ETH
         // $/ETH = 1000 ??
         // eg. $2000 / ETH. $1000 = 0.5 ETH
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (, int256 price,,,) = priceFeed.latestRoundData(); 
+        (, int256 price,,,) = priceFeed.staleCheckLatestRoundData();
         return (usdAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION);
-        
     }
 
     function getUsdValue(
@@ -349,7 +326,7 @@ contract DSCEngine {
 
     // get the collateral value in USD
     function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {
-        for (uint256 i=0; i < s_collateralTokens.length; i++) {
+        for (uint256 i = 0; i < s_collateralTokens.length; i++) {
             address token = s_collateralTokens[i];
             uint256 amount = s_collateralDeposited[user][token];
             uint256 value = _getUsdValue(token, amount);
@@ -357,7 +334,11 @@ contract DSCEngine {
         }
     }
 
-    function getAccountInformation(address user) external view returns (uint256 totalDscMinted, uint256 collateralValueInUsd) {
+    function getAccountInformation(address user)
+        external
+        view
+        returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
+    {
         return _getAccountInformation(user);
     }
 
@@ -369,5 +350,7 @@ contract DSCEngine {
         return s_collateralDeposited[user][token];
     }
 
-
+    function getCollateralTokenPriceFeed(address token) external view returns (address) {
+        return s_priceFeeds[token];
+    }
 }

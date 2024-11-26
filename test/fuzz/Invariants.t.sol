@@ -24,13 +24,11 @@ contract Invariants is StdInvariant, Test {
         deployer = new DeployDSC();
         (dsc, engine, config) = deployer.run();
         dsc = new DecentralizedStableCoin();
-        (, , weth, wbtc, ) = config.activeNetworkConfig();
+        (,, weth, wbtc,) = config.activeNetworkConfig();
         // targetContract(address(engine));
         // modify the invariant to check the proper collateralization
         handler = new Handler(engine, dsc);
         targetContract(address(handler));
-
-
     }
 
     //In the DSC, we should always have more collateral than the amount of DSC tokens minted (overcollateralization)
@@ -46,6 +44,4 @@ contract Invariants is StdInvariant, Test {
         uint256 totalCollateralValue = wethValue + btcValue;
         assert(totalCollateralValue >= totalSupply);
     }
-    
-
 }
